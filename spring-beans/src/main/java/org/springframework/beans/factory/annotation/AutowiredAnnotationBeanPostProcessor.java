@@ -139,6 +139,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 
 	/**
+	 * 初始化AutowiredAnnotationBeanPostProcessor 将 @Autowired @Value 加入 autowiredAnnotationTypes 用于postProcessMergedBeanDefinition的解析
+	 * 来自org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#applyMergedBeanDefinitionPostProcessors(org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Class, java.lang.String)处的调用，允许后置处理修改 BeanDefinition
 	 * Create a new AutowiredAnnotationBeanPostProcessor
 	 * for Spring's standard {@link Autowired} annotation.
 	 * <p>Also supports JSR-330's {@link javax.inject.Inject} annotation, if available.
@@ -286,7 +288,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								"] from ClassLoader [" + beanClass.getClassLoader() + "] failed", ex);
 					}
 					List<Constructor<?>> candidates = new ArrayList<>(rawCandidates.length);
+					// 存放的是有指定注入的构造器，即有@Autowired、@Value、@Inject注解并且required属性为true的构造器
 					Constructor<?> requiredConstructor = null;
+					// 存放的是无参构造器
 					Constructor<?> defaultConstructor = null;
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
 					int nonSyntheticConstructors = 0;
@@ -297,13 +301,18 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						else if (primaryConstructor != null) {
 							continue;
 						}
+						// 查询当前构造器是否有'注入注解', 即：Autowired、Value、Inject注解
 						AnnotationAttributes ann = findAutowiredAnnotation(candidate);
+						// 没有注入注解
 						if (ann == null) {
+							// 为了防止当前的class是一个代理的class，如果当前类为代理类，那么就解析非代理类
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
 							if (userClass != beanClass) {
 								try {
+									// 根据参数类型获取非代理类上的构造方法
 									Constructor<?> superCtor =
 											userClass.getDeclaredConstructor(candidate.getParameterTypes());
+									// 获取非代理类上面的注解 Autowired、Value、Inject
 									ann = findAutowiredAnnotation(superCtor);
 								}
 								catch (NoSuchMethodException ex) {
@@ -311,13 +320,16 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						}
+
 						if (ann != null) {
 							if (requiredConstructor != null) {
+								// 如果有多个注入注解标注的构造器，就抛出异常
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
 										". Found constructor with 'required' Autowired annotation already: " +
 										requiredConstructor);
 							}
+							// 判断required属性是否为true，如果为true，那么当前构造器就是用户所需的
 							boolean required = determineRequiredStatus(ann);
 							if (required) {
 								if (!candidates.isEmpty()) {
@@ -326,11 +338,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 											". Found constructor with 'required' Autowired annotation: " +
 											candidate);
 								}
+								// required属性为true的构造器
 								requiredConstructor = candidate;
 							}
 							candidates.add(candidate);
 						}
 						else if (candidate.getParameterCount() == 0) {
+							// 无参构造器
 							defaultConstructor = candidate;
 						}
 					}

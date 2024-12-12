@@ -205,12 +205,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@SuppressWarnings("unchecked")
 	protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredType,
 			@Nullable final Object[] args, boolean typeCheckOnly) throws BeansException {
-        // 返回 bean 名称，剥离工厂引用前缀。
-        // 如果 name 是 alias ，则获取对应映射的 beanName 。
+        // 返回 bean 名称，去掉工厂引用前缀或者转换别名
 		final String beanName = transformedBeanName(name);
 		Object bean;
 
-        // 从缓存中或者实例工厂中获取 Bean 对象
+        // 从缓存中或者实例工厂中获取 单例 Bean 对象
 		// Eagerly check singleton cache for manually registered singletons.
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
@@ -222,7 +221,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
-			// 完成 FactoryBean 的相关处理，并用来获取 FactoryBean 的处理结果
+			// 完成 FactoryBean 的相关处理，并用来获取给定bean实例的对象
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		} else {
 			// Fail if we're already creating this bean instance:
@@ -238,7 +237,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 				// Not found -> check parent.
 				String nameToLookup = originalBeanName(name);
-				// 如果，父类容器为 AbstractBeanFactory ，直接递归查找
+				// 如果，父类容器为 AbstractBeanFactory ，直接向上递归查找bean的定义
 				if (parentBeanFactory instanceof AbstractBeanFactory) {
 					return ((AbstractBeanFactory) parentBeanFactory).doGetBean(
 							nameToLookup, requiredType, args, typeCheckOnly);
